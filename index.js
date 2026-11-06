@@ -8,11 +8,12 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.join(__dirname, 'data.json');
 
+// Middleware
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'))); // Serves static UI dashboard files
 
-// Persistent data helpers
+// Helper functions for persistent data storage
 function readData() {
   if (!fs.existsSync(DATA_FILE)) {
     const initialData = { splits: [] };
@@ -20,7 +21,8 @@ function readData() {
     return initialData;
   }
   try {
-    return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    const rawData = fs.readFileSync(DATA_FILE, 'utf8');
+    return JSON.parse(rawData);
   } catch (err) {
     return { splits: [] };
   }
@@ -30,16 +32,43 @@ function writeData(data) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 }
 
-// Web Dashboard API routes
-app.get('/api/workouts', (req, res) => res.json(readData()));
-app.post('/api/workouts', (req, res) => {
-  const data = readData();
-  data.splits.push(req.body);
-  writeData(data);
-  res.json({ success: true, data: req.body });
+// --- WEB DASHBOARD FRONTEND APIS ---
+app.get('/api/workouts', (req, res) => {
+  res.json(readData());
 });
 
-// Tool definition catalog
+app.post('/api/workouts', (req, res) => {
+  const data = readData();
+  const newSplit = {
+    id: "split_" + Date.now(),
+    title: req.body.title || "New Workout Split",
+    days: req.body.days || [],
+    createdAt: new Date().toISOString()
+  };
+  data.splits.push(newSplit);
+  writeData(data);
+  res.json({ success: true, data: newSplit });
+});
+
+app.put('/api/workouts/:id', (req, res) => {
+  const data = readData();
+  const splitId = req.params.id;
+  const updatedSplit = req.body;
+  
+  data.splits = data.splits.map(s => s.id === splitId ? updatedSplit : s);
+  writeData(data);
+  res.json({ success: true, data: updatedSplit });
+});
+
+app.delete('/api/workouts/:id', (req, res) => {
+  const data = readData();
+  const splitId = req.params.id;
+  data.splits = data.splits.filter(s => s.id !== splitId);
+  writeData(data);
+  res.json({ success: true, message: "Split deleted" });
+});
+
+// --- MCP TOOL DEFINITIONS & LOGIC ---
 const TOOLS = [
   {
     name: "save_workout_split",
@@ -47,15 +76,18 @@ const TOOLS = [
     inputSchema: {
       type: "object",
       properties: {
-        title: { type: "string", description: "Title of the workout split" },
-        days: { type: "array", items: { type: "object" }, description: "Array of training days" }
+        title: { type: "string", description: "Title of the workout split (e.g. 4-Day Upper/Lower Split)" },
+        days: {
+          type: "array",
+          description: "Array of workout days containing exercises, sets, reps, and muscle groups.",
+          items: { type: "object" }
+        }
       },
       required: ["title", "days"]
     }
   }
 ];
 
-// Execute tool call logic
 function handleToolCall(name, args) {
   if (name === "save_workout_split") {
     const data = readData();
@@ -72,15 +104,15 @@ function handleToolCall(name, args) {
       content: [
         {
           type: "text",
-          text: `Successfully saved split "${newSplit.title}" with ${newSplit.days.length} training days to RoutineSync!`
+          text: `Successfully synced split "${newSplit.title}" with ${newSplit.days.length} training days to RoutineSync dashboard!`
         }
       ]
     };
   }
-  throw new Error(`Tool not found: ${name}`);
+  throw new Error(`Unknown tool: ${name}`);
 }
 
-// --- SSE TRANSPORT LAYER WITH HEARTBEAT ---
+// --- SSE TRANSPORT LAYER (mcp-remote setup) ---
 const clients = new Map();
 
 app.get('/sse', (req, res) => {
@@ -94,10 +126,10 @@ app.get('/sse', (req, res) => {
 
   clients.set(sessionId, res);
 
-  // Send initial endpoint URI line expected by mcp-remote
+  // Send SSE endpoint URL back to client
   res.write(`event: endpoint\ndata: /messages?sessionId=${sessionId}\n\n`);
 
-  // Heartbeat ping every 15 seconds to keep mcp-remote alive
+  // Periodic heartbeat to prevent Render & mcp-remote timeouts
   const heartbeat = setInterval(() => {
     res.write(`: heartbeat\n\n`);
   }, 15000);
@@ -111,43 +143,14 @@ app.get('/sse', (req, res) => {
 app.post('/messages', (req, res) => {
   const sessionId = req.query.sessionId;
   const body = req.body;
+  const client = clients.get(sessionId);
 
-  if (body.method === "tools/list") {
-    const client = clients.get(sessionId);
-    const response = {
-      jsonrpc: "2.0",
-      id: body.id,
-      result: { tools: TOOLS }
-    };
-    if (client) client.write(`event: message\ndata: ${JSON.stringify(response)}\n\n`);
-    return res.status(202).end();
+  if (!client) {
+    return res.status(400).send("Session not found");
   }
 
-  if (body.method === "tools/call") {
-    const client = clients.get(sessionId);
-    const { name, arguments: args } = body.params || {};
-    try {
-      const result = handleToolCall(name, args);
-      const response = {
-        jsonrpc: "2.0",
-        id: body.id,
-        result
-      };
-      if (client) client.write(`event: message\ndata: ${JSON.stringify(response)}\n\n`);
-    } catch (err) {
-      const errorResponse = {
-        jsonrpc: "2.0",
-        id: body.id,
-        error: { code: -32603, message: err.message }
-      };
-      if (client) client.write(`event: message\ndata: ${JSON.stringify(errorResponse)}\n\n`);
-    }
-    return res.status(202).end();
-  }
-
-  // General MCP handshake response
+  // Handle initialization handshake
   if (body.method === "initialize") {
-    const client = clients.get(sessionId);
     const response = {
       jsonrpc: "2.0",
       id: body.id,
@@ -157,14 +160,47 @@ app.post('/messages', (req, res) => {
         serverInfo: { name: "routinesync", version: "1.0.0" }
       }
     };
-    if (client) client.write(`event: message\ndata: ${JSON.stringify(response)}\n\n`);
+    client.write(`event: message\ndata: ${JSON.stringify(response)}\n\n`);
+    return res.status(202).end();
+  }
+
+  // Handle tool discovery requests
+  if (body.method === "tools/list") {
+    const response = {
+      jsonrpc: "2.0",
+      id: body.id,
+      result: { tools: TOOLS }
+    };
+    client.write(`event: message\ndata: ${JSON.stringify(response)}\n\n`);
+    return res.status(202).end();
+  }
+
+  // Handle tool execution requests from Claude
+  if (body.method === "tools/call") {
+    const { name, arguments: args } = body.params || {};
+    try {
+      const result = handleToolCall(name, args);
+      const response = {
+        jsonrpc: "2.0",
+        id: body.id,
+        result
+      };
+      client.write(`event: message\ndata: ${JSON.stringify(response)}\n\n`);
+    } catch (err) {
+      const errorResponse = {
+        jsonrpc: "2.0",
+        id: body.id,
+        error: { code: -32603, message: err.message }
+      };
+      client.write(`event: message\ndata: ${JSON.stringify(errorResponse)}\n\n`);
+    }
     return res.status(202).end();
   }
 
   res.status(200).end();
 });
 
-// Direct HTTP fallback routes
+// Direct HTTP fallback routes for testing
 app.get('/api/mcp/tools', (req, res) => res.json({ tools: TOOLS }));
 app.post('/api/mcp/tools', (req, res) => {
   const { name, arguments: args } = req.body;
@@ -176,6 +212,7 @@ app.post('/api/mcp/tools', (req, res) => {
   }
 });
 
+// Start Express server
 app.listen(PORT, () => {
   console.log(`RoutineSync server running on port ${PORT}`);
 });
