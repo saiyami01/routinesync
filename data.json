@@ -1,0 +1,286 @@
+[
+  {
+    "id": "1793921221708",
+    "splitName": "4-Day Upper/Lower Strength & Hypertrophy",
+    "days": [
+      {
+        "dayName": "Day 1: Upper Power",
+        "exercises": [
+          {
+            "name": "Dumbbell Bench Press",
+            "sets": 4,
+            "reps": "3-5"
+          },
+          {
+            "name": "Weighted Pull-Ups or Barbell Row",
+            "sets": 4,
+            "reps": "4-6"
+          },
+          {
+            "name": "Overhead Press",
+            "sets": 3,
+            "reps": "5-6"
+          },
+          {
+            "name": "Chest-Supported Dumbbell Row",
+            "sets": 3,
+            "reps": "6-8"
+          },
+          {
+            "name": "Barbell Curl",
+            "sets": 2,
+            "reps": "6-8"
+          },
+          {
+            "name": "Close-Grip Bench Press",
+            "sets": 2,
+            "reps": "6-8"
+          }
+        ]
+      },
+      {
+        "dayName": "Day 2: Lower Power",
+        "exercises": [
+          {
+            "name": "Barbell Back Squat",
+            "sets": 4,
+            "reps": "3-5"
+          },
+          {
+            "name": "Romanian Deadlift",
+            "sets": 3,
+            "reps": "5-6"
+          },
+          {
+            "name": "Leg Press",
+            "sets": 3,
+            "reps": "6-8"
+          },
+          {
+            "name": "Weighted Back Extension",
+            "sets": 3,
+            "reps": "6-8"
+          },
+          {
+            "name": "Hanging Leg Raise",
+            "sets": 3,
+            "reps": "8-10"
+          },
+          {
+            "name": "Standing Calf Raise",
+            "sets": 4,
+            "reps": "6-8"
+          }
+        ]
+      },
+      {
+        "dayName": "Day 3: Upper Hypertrophy",
+        "exercises": [
+          {
+            "name": "Incline Dumbbell Press",
+            "sets": 4,
+            "reps": "8-12"
+          },
+          {
+            "name": "Lat Pulldown",
+            "sets": 4,
+            "reps": "8-12"
+          },
+          {
+            "name": "Seated Dumbbell Shoulder Press",
+            "sets": 3,
+            "reps": "10-12"
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "10-12"
+          },
+          {
+            "name": "Cable Fly",
+            "sets": 3,
+            "reps": "12-15"
+          },
+          {
+            "name": "Lateral Raises",
+            "sets": 4,
+            "reps": "12-20"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "15-20"
+          },
+          {
+            "name": "Incline Dumbbell Curl",
+            "sets": 3,
+            "reps": "10-12"
+          },
+          {
+            "name": "Triceps Rope Pushdown",
+            "sets": 3,
+            "reps": "10-15"
+          }
+        ]
+      },
+      {
+        "dayName": "Day 4: Lower Hypertrophy",
+        "exercises": [
+          {
+            "name": "Front Squat or Hack Squat",
+            "sets": 4,
+            "reps": "8-10"
+          },
+          {
+            "name": "Hip Thrust",
+            "sets": 3,
+            "reps": "8-12"
+          },
+          {
+            "name": "Bulgarian Split Squat",
+            "sets": 3,
+            "reps": "10-12 per leg"
+          },
+          {
+            "name": "Seated Leg Curl",
+            "sets": 4,
+            "reps": "10-15"
+          },
+          {
+            "name": "Leg Extension",
+            "sets": 3,
+            "reps": "12-15"
+          },
+          {
+            "name": "Seated Calf Raise",
+            "sets": 4,
+            "reps": "12-20"
+          },
+          {
+            "name": "Cable Crunch",
+            "sets": 3,
+            "reps": "12-15"
+          }
+        ]
+      }
+    ],
+    "createdAt": "2026-11-05T23:27:01.708Z"
+  },
+  {
+    "id": "1793920509711",
+    "splitName": "3-Day Push-Pull-Legs",
+    "days": [
+      {
+        "dayName": "Day 1: Push Focus",
+        "exercises": [
+          {
+            "name": "Dumbell Bench Press",
+            "sets": 4,
+            "reps": "6-8"
+          },
+          {
+            "name": "Overhead Shoulder Press",
+            "sets": 3,
+            "reps": "8-10"
+          },
+          {
+            "name": "Incline Dumbbell Press",
+            "sets": 3,
+            "reps": "8-12"
+          },
+          {
+            "name": "Lateral Raises",
+            "sets": 3,
+            "reps": "12-15"
+          },
+          {
+            "name": "Triceps Rope Pushdown",
+            "sets": 3,
+            "reps": "10-15"
+          },
+          {
+            "name": "Overhead Triceps Extension",
+            "sets": 2,
+            "reps": "10-12"
+          }
+        ]
+      },
+      {
+        "dayName": "Day 2: Pull Focus",
+        "exercises": [
+          {
+            "name": "Deadlift",
+            "sets": 3,
+            "reps": "5"
+          },
+          {
+            "name": "Pull-Ups or Lat Pulldown",
+            "sets": 4,
+            "reps": "6-10"
+          },
+          {
+            "name": "Barbell Row",
+            "sets": 3,
+            "reps": "8-10"
+          },
+          {
+            "name": "Seated Cable Row",
+            "sets": 3,
+            "reps": "10-12"
+          },
+          {
+            "name": "Face Pulls",
+            "sets": 3,
+            "reps": "12-15"
+          },
+          {
+            "name": "Barbell Curl",
+            "sets": 3,
+            "reps": "8-12"
+          },
+          {
+            "name": "Hammer Curl",
+            "sets": 2,
+            "reps": "10-12"
+          }
+        ]
+      },
+      {
+        "dayName": "Day 3: Legs Focus",
+        "exercises": [
+          {
+            "name": "Barbell Back Squat",
+            "sets": 4,
+            "reps": "6-8"
+          },
+          {
+            "name": "Romanian Deadlift",
+            "sets": 3,
+            "reps": "8-10"
+          },
+          {
+            "name": "Leg Press",
+            "sets": 3,
+            "reps": "10-12"
+          },
+          {
+            "name": "Walking Lunges",
+            "sets": 3,
+            "reps": "10-12 per leg"
+          },
+          {
+            "name": "Leg Curl",
+            "sets": 3,
+            "reps": "10-15"
+          },
+          {
+            "name": "Standing Calf Raise",
+            "sets": 4,
+            "reps": "12-15"
+          }
+        ]
+      }
+    ],
+    "createdAt": "2026-11-05T23:15:09.711Z"
+  }
+]

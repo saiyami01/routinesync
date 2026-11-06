@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>RoutineSync Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-8">
+  <div class="max-w-2xl mx-auto">
+    <h1 class="text-3xl font-bold mb-2 text-gray-800">RoutineSync Dashboard</h1>
+    <p class="text-gray-500 mb-6">Workouts created by Claude via MCP appear here instantly and can be tracked live.</p>
+    <div id="item-list" class="space-y-4"></div>
+  </div>
+
+  <script>
+    let isEditing = false;
+
+    async function loadWorkouts() {
+      if (isEditing) return; // Don't refresh while the user is typing!
+
+      try {
+        const res = await fetch('/api/items');
+        const items = await res.json();
+        const container = document.getElementById('item-list');
+
+        if (!items || items.length === 0) {
+          container.innerHTML = `<p class="text-gray-400">No workout splits found. Ask Claude to create one!</p>`;
+          return;
+        }
+
+        container.innerHTML = items.map(item => {
+          if (!item.days) {
+            return `
+              <div class="p-4 bg-white rounded-lg shadow-sm border border-gray-200 mb-4">
+                <h2 class="font-bold text-lg mb-2 text-gray-800">${item.title || 'Workout Entry'}</h2>
+                <textarea class="w-full text-gray-600 border border-gray-200 rounded p-2 resize-y whitespace-pre-wrap" rows="4" onfocus="isEditing=true" onblur="isEditing=false" onchange="updateItem('${item.id}', null, this.value)">${item.content || ''}</textarea>
+              </div>
+            `;
+          }
+
+          return `
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+              <h2 class="text-xl font-bold text-gray-800 mb-4">${item.splitName}</h2>
+              <div class="space-y-6">
+                ${item.days.map((day, dIdx) => `
+                  <div class="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                    <h3 class="font-semibold text-gray-700 mb-3">${day.dayName}</h3>
+                    <ul class="space-y-2">
+                      ${day.exercises.map((ex, eIdx) => `
+                        <li class="flex items-center justify-between bg-white p-3 rounded border border-gray-200 text-sm">
+                          <div class="flex items-center space-x-3 w-full mr-4">
+                            <input type="checkbox" class="h-4 w-4 text-blue-600 rounded border-gray-300">
+                            <input 
+                              type="text" 
+                              class="font-medium text-gray-800 border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none bg-transparent w-full" 
+                              value="${ex.name}" 
+                              onfocus="isEditing=true"
+                              onblur="isEditing=false"
+                              onchange="updateExercise('${item.id}', ${dIdx}, ${eIdx}, this.value)"
+                            />
+                          </div>
+                          <div class="text-gray-500 font-mono text-xs bg-gray-100 px-2 py-1 rounded whitespace-nowrap">
+                            ${ex.sets} sets × ${ex.reps} reps
+                          </div>
+                        </li>
+                      `).join('')}
+                    </ul>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        console.error("Failed to load workouts", e);
+      }
+    }
+
+    async function updateExercise(itemId, dayIndex, exerciseIndex, newName) {
+      isEditing = false;
+      await fetch(`/api/items/exercise/${itemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dayIndex, exerciseIndex, newName })
+      });
+      loadWorkouts();
+    }
+
+    loadWorkouts();
+    setInterval(loadWorkouts, 5000); // Slower interval (5s) as a fallback
+  </script>
+</body>
+</html>
