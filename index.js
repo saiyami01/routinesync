@@ -1,124 +1,138 @@
 const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const { Server } = require('@modelcontextprotocol/sdk/server/index.js');
-const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
-const { CallToolRequestSchema, ListToolsRequestSchema } = require('@modelcontextprotocol/sdk/types.js');
+const bodyParser = require('body-parser');
 const fs = require('fs');
+const path = require('path');
+const cors = require('cors');
 
-// Simple File-Based Database for shared access
-const DB_FILE = path.join(__dirname, 'data.json');
-if (!fs.existsSync(DB_FILE)) {
-  fs.writeFileSync(DB_FILE, JSON.stringify([
-    { id: '1', title: 'Welcome Routine', content: 'Created by Claude via MCP!', createdAt: new Date().toISOString() }
-  ]));
+const app = express();
+const PORT = process.env.PORT || 3000;
+const DATA_FILE = path.join(__dirname, 'data.json');
+
+// Middleware
+app.use(cors());
+app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, 'public'))); // Serves your dashboard frontend
+
+// Helper to read/write persistent data
+function readData() {
+  if (!fs.existsSync(DATA_FILE)) {
+    const initialData = { splits: [] };
+    fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2));
+    return initialData;
+  }
+  try {
+    const rawData = fs.readFileSync(DATA_FILE, 'utf8');
+    return JSON.parse(rawData);
+  } catch (err) {
+    return { splits: [] };
+  }
 }
 
-function getItems() {
-  try { return JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch(e) { return []; }
-}
-function saveItems(items) {
-  fs.writeFileSync(DB_FILE, JSON.stringify(items, null, 2));
+function writeData(data) {
+  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 }
 
-// Check if running as MCP stdio child process
-if (process.argv.includes('--mcp')) {
-  const server = new Server({ name: 'routinesync', version: '1.0.0' }, { capabilities: { tools: {} } });
+// --- DASHBOARD API ENDPOINTS ---
+app.get('/api/workouts', (req, res) => {
+  const data = readData();
+  res.json(data);
+});
+
+app.post('/api/workouts', (req, res) => {
+  const data = readData();
+  const newSplit = req.body;
+  data.splits.push(newSplit);
+  writeData(data);
+  res.json({ success: true, data: newSplit });
+});
+
+app.put('/api/workouts/:id', (req, res) => {
+  const data = readData();
+  const splitId = req.params.id;
+  const updatedSplit = req.body;
   
-  // 1. Define the tool schema for Claude
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: [{
-      name: 'save_workout_split',
-      description: 'Saves a structured workout split with daily routines and exercises to the user dashboard.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          splitName: { type: 'string', description: 'Name of the workout split (e.g. 3-Day Push-Pull-Legs)' },
-          days: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                dayName: { type: 'string', description: 'Day title (e.g. Day 1: Push Focus)' },
-                exercises: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      name: { type: 'string', description: 'Exercise name' },
-                      sets: { type: 'integer', description: 'Number of sets' },
-                      reps: { type: 'string', description: 'Rep range (e.g. 8-12)' }
-                    },
-                    required: ['name', 'sets', 'reps']
-                  }
-                }
-              },
-              required: ['dayName', 'exercises']
-            }
-          }
-        },
-        required: ['splitName', 'days']
-      }
-    }]
-  }));
+  data.splits = data.splits.map(s => s.id === splitId ? updatedSplit : s);
+  writeData(data);
+  res.json({ success: true, data: updatedSplit });
+});
 
-  // 2. Handle the tool call when Claude sends the structured workout data
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    if (request.params.name === 'save_workout_split') {
-      const { splitName, days } = request.params.arguments;
-      const items = getItems();
-      
+// --- MCP TOOL ENDPOINTS (Fixed for mcp-remote) ---
+// Handles tool discovery via GET
+app.get('/api/mcp/tools', (req, res) => {
+  res.json({
+    tools: [
+      {
+        name: "save_workout_split",
+        description: "Save or update an AI-generated workout split routine to the user dashboard.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            title: { type: "string", description: "Name of the workout split (e.g., 4-Day Upper/Lower Split)" },
+            days: {
+              type: "array",
+              description: "Array of workout days containing exercises, sets, and reps.",
+              items: { type: "object" }
+            }
+          },
+          required: ["title", "days"]
+        }
+      }
+    ]
+  });
+});
+
+// Handles tool execution via POST from Claude / mcp-remote
+app.post('/api/mcp/tools', (req, res) => {
+  try {
+    const { name, arguments: args } = req.body;
+    
+    if (name === 'save_workout_split') {
+      const data = readData();
       const newSplit = {
-        id: String(Date.now()),
-        splitName,
-        days,
+        id: 'split_' + Date.now(),
+        title: args.title || 'AI Generated Split',
+        days: args.days || [],
         createdAt: new Date().toISOString()
       };
       
-      items.unshift(newSplit);
-      saveItems(items);
-      
-      return { 
-        content: [{ type: 'text', text: `Successfully saved workout split "${splitName}" with ${days.length} days to your dashboard!` }] 
-      };
-    }
-    throw new Error('Tool not found');
-  });
+      data.splits.push(newSplit);
+      writeData(data);
 
-  const transport = new StdioServerTransport();
-  server.connect(transport);
-} else {
-  // Web Server Mode
-  const app = express();
-  app.use(cors());
-  app.use(express.json());
-  app.use(express.static(path.join(__dirname, 'public')));
+      return res.json({
+        content: [
+          {
+            type: "text",
+            text: `Successfully saved workout split "${newSplit.title}" with ${newSplit.days.length} training days to your RoutineSync dashboard!`
+          }
+        ]
+      });
+    }
 
-  app.get('/api/items', (req, res) => res.json(getItems()));
-  app.put('/api/items/:id', (req, res) => {
-    const items = getItems();
-    const item = items.find(i => i.id === req.params.id);
-    if (item) {
-      if (req.body.title !== undefined) item.title = req.body.title;
-      if (req.body.content !== undefined) item.content = req.body.content;
-      saveItems(items);
-      return res.json({ success: true, item });
-    }
-    res.status(404).json({ error: 'Item not found' });
+    res.status(400).json({ error: { message: `Unknown tool: ${name}` } });
+  } catch (err) {
+    res.status(500).json({ error: { message: err.message } });
+  }
+});
+
+// Optional SSE endpoint fallback for standard MCP remote transport
+app.get('/sse', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  res.write(`data: ${JSON.stringify({ type: 'connected', endpoint: '/api/mcp/tools' })}\n\n`);
+  
+  const interval = setInterval(() => {
+    res.write(`data: ${JSON.stringify({ type: 'ping' })}\n\n`);
+  }, 30000);
+
+  req.on('close', () => {
+    clearInterval(interval);
   });
-// Add this route to your Express web server handlers in index.js:
-  app.put('/api/items/exercise/:id', (req, res) => {
-    const { dayIndex, exerciseIndex, newName } = req.body;
-    const items = getItems();
-    const item = items.find(i => i.id === req.params.id);
-    
-    if (item && item.days && item.days[dayIndex] && item.days[dayIndex].exercises[exerciseIndex]) {
-      item.days[dayIndex].exercises[exerciseIndex].name = newName;
-      saveItems(items);
-      return res.json({ success: true, item });
-    }
-    res.status(404).json({ error: 'Workout or exercise not found' });
-  });
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
-}
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`RoutineSync server running on port ${PORT}`);
+});
